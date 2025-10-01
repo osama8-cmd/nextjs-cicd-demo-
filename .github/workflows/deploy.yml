@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    # This makes GitHub use YOUR EC2 runner instead of GitHub's servers
+    # Use GitHub-hosted runner instead of self-hosted
     runs-on: ubuntu-latest
 
     steps:
@@ -20,39 +20,14 @@ jobs:
 
       - name: Build Docker image
         run: |
-          # This runs ON YOUR EC2 runner!
           docker build -t my-nextjs-app:${{ github.sha }} .
           docker tag my-nextjs-app:${{ github.sha }} my-nextjs-app:latest
 
       - name: Save Docker image
         run: |
-          # Save image as a file to transfer it
           docker save my-nextjs-app:latest | gzip > nextjs-app.tar.gz
-         - name: Deploy to Production VM
-  env:
-    DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}      # EC2 Elastic IP
-    DEPLOY_USER: ${{ secrets.DEPLOY_USER }}   # e.g., deploy
-    DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}     # SSH private key
-  run: |
-    mkdir -p ~/.ssh
-    echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
-    chmod 600 ~/.ssh/deploy_key
-    ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
 
-    # Copy Docker image
-    scp -i ~/.ssh/deploy_key nextjs-app.tar.gz $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/
-
-    # Deploy remotely
-    ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
-      docker load < /home/$DEPLOY_USER/nextjs-app.tar.gz
-      docker stop nextjs-app || true
-      docker rm nextjs-app || true
-      docker run -d --name nextjs-app --restart unless-stopped -p 3000:3000 my-nextjs-app:latest
-      rm /home/$DEPLOY_USER/nextjs-app.tar.gz
-      docker image prune -f
-    EOF
-
-    # Cleanup local key
-    rm ~/.ssh/deploy_key
- 
-          
+      - name: Deploy to Production VM
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}      # EC2 Elastic IP
+          DEPLOY
