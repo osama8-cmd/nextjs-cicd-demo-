@@ -8,35 +8,55 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest   # ✅ Use GitHub runner (not self-hosted)
-
+    runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
+      
       - name: Build Docker image
         run: |
           docker build -t my-nextjs-app:${{ github.sha }} .
           docker tag my-nextjs-app:${{ github.sha }} my-nextjs-app:latest
-
+      
       - name: Save Docker image
         run: |
           docker save my-nextjs-app:latest | gzip > nextjs-app.tar.gz
-
+      
       - name: Deploy to Production VM
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}   # Your EC2 Elastic IP
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}   # e.g., deploy
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}     # Private key
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
-          echo "${DEPLOY_KEY}" > ~/.ssh/deploy_key   # ✅ Wrapped in quotes
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-
+          
           # Copy Docker image to production
-          scp -i ~/.ssh/deploy_key nextjs-app.tar.gz $DEPLOY_
+          scp -i ~/.ssh/deploy_key nextjs-app.tar.gz $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/
+          
+          # Deploy on production server
+          ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+            # Load Docker image
+            docker load < /home/ubuntu/nextjs-app.tar.gz
+            
+            # Stop and remove old container
+            docker stop my-nextjs-app || true
+            docker rm my-nextjs-app || true
+            
+            # Run new container
+            docker run -d \
+              --name my-nextjs-app \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              my-nextjs-app:latest
+            
+            # Cleanup
+            rm /home/ubuntu/nextjs-app.tar.gz
+          EOF
