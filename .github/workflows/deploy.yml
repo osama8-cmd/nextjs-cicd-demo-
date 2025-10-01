@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-deploy:
     # This makes GitHub use YOUR EC2 runner instead of GitHub's servers
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
