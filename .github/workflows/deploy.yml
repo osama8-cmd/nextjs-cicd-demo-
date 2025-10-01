@@ -42,7 +42,6 @@ jobs:
           ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
           # Copy Docker image to production
           scp -i ~/.ssh/deploy_key nextjs-app.tar.gz $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/
-
           # Deploy on production server
           ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
             # Load Docker image
