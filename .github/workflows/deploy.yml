@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest   # ✅ Use GitHub-hosted runner instead of self-hosted
+    runs-on: ubuntu-latest   # ✅ GitHub-hosted runner
 
     steps:
       - name: Checkout code
@@ -26,15 +26,20 @@ jobs:
         run: |
           docker save my-nextjs-app:latest | gzip > nextjs-app.tar.gz
 
-            - name: Deploy to Production VM
+      - name: Debug Secrets (check values)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          echo "Host: $DEPLOY_HOST"
+          echo "User: $DEPLOY_USER"
+
+      - name: Deploy to Production VM
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
-          # Debugging: check variables
-          echo "Connecting to host: $DEPLOY_HOST with user: $DEPLOY_USER"
-
           # Setup SSH
           mkdir -p ~/.ssh
           echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
