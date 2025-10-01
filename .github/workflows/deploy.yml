@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest   # ✅ GitHub-hosted runner
+    runs-on: ubuntu-latest   # ✅ Use GitHub runner (not self-hosted)
 
     steps:
       - name: Checkout code
@@ -26,46 +26,17 @@ jobs:
         run: |
           docker save my-nextjs-app:latest | gzip > nextjs-app.tar.gz
 
-      - name: Debug Secrets (check values)
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          echo "Host: $DEPLOY_HOST"
-          echo "User: $DEPLOY_USER"
-
       - name: Deploy to Production VM
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}   # Your EC2 Elastic IP
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}   # e.g., deploy
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}     # Private key
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
-          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          echo "${DEPLOY_KEY}" > ~/.ssh/deploy_key   # ✅ Wrapped in quotes
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 22 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
           # Copy Docker image to production
-          scp -i ~/.ssh/deploy_key nextjs-app.tar.gz \
-            $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/
-
-          # Deploy on production server
-          ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
-            docker load < /home/$DEPLOY_USER/nextjs-app.tar.gz
-
-            docker stop nextjs-app || true
-            docker rm nextjs-app || true
-
-            docker run -d \
-              --name nextjs-app \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              my-nextjs-app:latest
-
-            rm /home/$DEPLOY_USER/nextjs-app.tar.gz
-            docker image prune -f
-          EOF
-
-          # Clean up local SSH key
-          rm ~/.ssh/deploy_key
+          scp -i ~/.ssh/deploy_key nextjs-app.tar.gz $DEPLOY_
