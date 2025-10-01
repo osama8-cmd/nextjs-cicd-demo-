@@ -26,17 +26,20 @@ jobs:
         run: |
           docker save my-nextjs-app:latest | gzip > nextjs-app.tar.gz
 
-      - name: Deploy to Production VM
+            - name: Deploy to Production VM
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
+          # Debugging: check variables
+          echo "Connecting to host: $DEPLOY_HOST with user: $DEPLOY_USER"
+
           # Setup SSH
           mkdir -p ~/.ssh
           echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -p 22 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
           # Copy Docker image to production
           scp -i ~/.ssh/deploy_key nextjs-app.tar.gz \
@@ -61,4 +64,3 @@ jobs:
 
           # Clean up local SSH key
           rm ~/.ssh/deploy_key
-
